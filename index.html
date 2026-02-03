@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InsightAgent — Natural Language Data Q&A | Gorgias Decision Intelligence</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --gorgias-purple: #7c3aed;
+            --gorgias-blue: #3b82f6;
+            --gorgias-teal: #14b8a6;
+            --gorgias-pink: #ec4899;
+            --gorgias-orange: #f97316;
+            --success: #22c55e;
+            --warning: #eab308;
+            --danger: #ef4444;
+            --bg-0: #09090b;
+            --bg-1: #111114;
+            --bg-2: #18181b;
+            --bg-3: #27272a;
+            --text-0: #fafafa;
+            --text-1: #a1a1aa;
+            --text-2: #71717a;
+            --border: #2e2e33;
+            --gradient-main: linear-gradient(135deg, #7c3aed 0%, #3b82f6 50%, #14b8a6 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg-0);
+            color: var(--text-0);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .topbar {
+            height: 52px;
+            background: rgba(9, 9, 11, 0.85);
+            backdrop-filter: blur(24px) saturate(1.4);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-mark {
+            width: 32px; height: 32px;
+            background: var(--gradient-main);
+            border-radius: 8px;
+            display: grid;
+            place-items: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+            box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+        }
+
+        .logo-name {
+            font-size: 1.05rem;
+            font-weight: 700;
+            background: var(--gradient-main);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-tag {
+            font-size: 0.55rem;
+            text-transform: uppercase;
+            letter-spacing: 2.5px;
+            color: var(--text-2);
+            font-weight: 500;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chip {
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.6rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            background: var(--bg-2);
+            border: 1px solid var(--border);
+            color: var(--text-1);
+        }
+
+        .chip.live {
+            background: rgba(34, 197, 94, 0.12);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: var(--success);
+        }
+
+        .chip.live::before {
+            content: '';
+            display: inline-block;
+            width: 5px; height: 5px;
+            background: var(--success);
+            border-radius: 50%;
+            margin-right: 5px;
+            animation: blink 1.8s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Layout */
+        .layout {
+            display: grid;
+            grid-template-columns: 340px 1fr 380px;
+            height: calc(100vh - 52px);
+        }
+
+        @media (max-width: 1400px) {
+            .layout { grid-template-columns: 1fr; }
+            .panel-left, .panel-right { display: none; }
+        }
+
+        /* Panels */
+        .panel {
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+        }
+
+        .panel:last-child { border-right: none; }
+
+        .panel-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-1);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .panel-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .panel-subtitle {
+            font-size: 0.65rem;
+            color: var(--text-2);
+            margin-top: 0.15rem;
+        }
+
+        /* Left Panel - Data Context */
+        .context-card {
+            margin: 0.75rem;
+            padding: 0.85rem;
+            background: var(--bg-2);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .context-card:hover {
+            border-color: var(--gorgias-purple);
+            background: rgba(124, 58, 237, 0.06);
+        }
+
+        .context-card.active {
+            border-color: var(--gorgias-purple);
+            background: rgba(124, 58, 237, 0.08);
+            box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.2);
+        }
+
+        .cc-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .cc-icon {
+            width: 28px; height: 28px;
+            border-radius: 6px;
+            display: grid;
+            place-items: center;
+            font-size: 0.8rem;
+        }
+
+        .cc-name {
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+
+        .cc-type {
+            font-size: 0.58rem;
+            color: var(--text-2);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .cc-tags {
+            display: flex;
+            gap: 0.3rem;
+            flex-wrap: wrap;
+        }
+
+        .cc-tag {
+            padding: 0.15rem 0.45rem;
+            background: var(--bg-0);
+            border-radius: 4px;
+            font-size: 0.55rem;
+            color: var(--text-2);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Center Panel - Chat */
+        .chat-area {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: var(--bg-0);
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+
+        .message {
+            max-width: 680px;
+            margin: 0 auto 1.25rem;
+            animation: msgIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes msgIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg-user {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 1.5rem;
+        }
+
+        .msg-user .msg-bubble {
+            background: var(--gorgias-purple);
+            color: white;
+            padding: 0.7rem 1rem;
+            border-radius: 14px 14px 4px 14px;
+            font-size: 0.85rem;
+            max-width: 85%;
+            line-height: 1.5;
+        }
+
+        .msg-ai {
+            margin-bottom: 1.5rem;
+        }
+
+        .msg-ai-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .msg-avatar {
+            width: 26px; height: 26px;
+            background: var(--gradient-main);
+            border-radius: 7px;
+            display: grid;
+            place-items: center;
+            font-size: 0.7rem;
+        }
+
+        .msg-name {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-1);
+        }
+
+        .msg-ai .msg-content {
+            margin-left: 2.25rem;
+        }
+
+        .msg-text {
+            font-size: 0.85rem;
+            color: var(--text-0);
+            line-height: 1.6;
+            margin-bottom: 0.75rem;
+        }
+
+        /* SQL Block */
+        .sql-block {
+            background: var(--bg-1);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 0.75rem;
+            overflow: hidden;
+        }
+
+        .sql-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sql-label {
+            font-size: 0.6rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-2);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .sql-status {
+            font-size: 0.55rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--success);
+        }
+
+        .sql-body {
+            padding: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            color: var(--text-1);
+            line-height: 1.7;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+
+        .sql-keyword { color: var(--gorgias-purple); font-weight: 600; }
+        .sql-function { color: var(--gorgias-blue); }
+        .sql-string { color: var(--gorgias-teal); }
+        .sql-number { color: var(--gorgias-orange); }
+        .sql-comment { color: var(--text-2); font-style: italic; }
+
+        /* Result Table */
+        .result-table-wrapper {
+            background: var(--bg-1);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 0.75rem;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .result-label {
+            font-size: 0.6rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-2);
+        }
+
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .result-table th {
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            font-size: 0.62rem;
+            font-weight: 600;
+            color: var(--text-2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .result-table td {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+            border-bottom: 1px solid rgba(46, 46, 51, 0.5);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .result-table tr:last-child td { border-bottom: none; }
+
+        .result-table tr:hover td {
+            background: rgba(124, 58, 237, 0.04);
+        }
+
+        .td-num { color: var(--gorgias-blue); font-weight: 600; }
+        .td-positive { color: var(--success); }
+        .td-negative { color: var(--danger); }
+
+        /* Chart */
+        .chart-container {
+            background: var(--bg-1);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .chart-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: var(--text-1);
+        }
+
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 6px;
+            height: 120px;
+            padding-top: 0.5rem;
+        }
+
+        .bar-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            height: 100%;
+            justify-content: flex-end;
+        }
+
+        .bar {
+            width: 100%;
+            border-radius: 4px 4px 0 0;
+            min-height: 4px;
+            transition: height 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+
+        .bar:hover { filter: brightness(1.2); }
+
+        .bar-label {
+            font-size: 0.5rem;
+            color: var(--text-2);
+            font-family: 'JetBrains Mono', monospace;
+            text-align: center;
+        }
+
+        .bar-value {
+            font-size: 0.55rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-1);
+            font-weight: 600;
+        }
+
+        /* Pipeline Visualization */
+        .pipeline {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.5rem;
+            background: var(--bg-2);
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            overflow-x: auto;
+        }
+
+        .pipeline-step {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.35rem 0.55rem;
+            background: var(--bg-0);
+            border-radius: 6px;
+            font-size: 0.6rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-2);
+            white-space: nowrap;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+
+        .pipeline-step.active {
+            color: var(--gorgias-purple);
+            border-color: rgba(124, 58, 237, 0.3);
+            background: rgba(124, 58, 237, 0.08);
+        }
+
+        .pipeline-step.done {
+            color: var(--success);
+            border-color: rgba(34, 197, 94, 0.3);
+            background: rgba(34, 197, 94, 0.06);
+        }
+
+        .pipeline-arrow {
+            color: var(--text-2);
+            font-size: 0.7rem;
+        }
+
+        /* Typing indicator */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            margin-left: 2.25rem;
+        }
+
+        .typing-dot {
+            width: 6px; height: 6px;
+            background: var(--text-2);
+            border-radius: 50%;
+            animation: typingBounce 1.2s ease-in-out infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-6px); opacity: 1; }
+        }
+
+        /* Chat Input */
+        .chat-input-area {
+            padding: 1rem 1.5rem 1.25rem;
+            border-top: 1px solid var(--border);
+            background: var(--bg-1);
+        }
+
+        .chat-input-box {
+            max-width: 680px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .chat-input {
+            width: 100%;
+            padding: 0.85rem 3.5rem 0.85rem 1rem;
+            background: var(--bg-2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-0);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.85rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .chat-input::placeholder { color: var(--text-2); }
+
+        .chat-input:focus {
+            border-color: var(--gorgias-purple);
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
+
+        .send-btn {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 34px; height: 34px;
+            background: var(--gradient-main);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            transition: all 0.2s;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-50%) scale(1.05);
+            box-shadow: 0 0 16px rgba(124, 58, 237, 0.4);
+        }
+
+        .quick-queries {
+            display: flex;
+            gap: 0.4rem;
+            margin-top: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .quick-btn {
+            padding: 0.3rem 0.65rem;
+            background: var(--bg-2);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--text-2);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.68rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-btn:hover {
+            border-color: var(--gorgias-purple);
+            color: var(--text-0);
+            background: rgba(124, 58, 237, 0.08);
+        }
+
+        /* Right Panel - Metrics */
+        .metric-card {
+            margin: 0.75rem;
+            padding: 0.85rem;
+            background: var(--bg-2);
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .mc-label {
+            font-size: 0.62rem;
+            color: var(--text-2);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+            margin-bottom: 0.4rem;
+        }
+
+        .mc-value {
+            font-size: 1.6rem;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .mc-change {
+            font-size: 0.62rem;
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 0.2rem;
+        }
+
+        .mc-change.up { color: var(--success); }
+        .mc-change.down { color: var(--danger); }
+
+        .mc-sparkline {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 30px;
+            margin-top: 0.5rem;
+        }
+
+        .spark-bar {
+            flex: 1;
+            border-radius: 2px;
+            transition: height 0.5s;
+        }
+
+        /* Query Log */
+        .query-log-item {
+            margin: 0.5rem 0.75rem;
+            padding: 0.65rem;
+            background: var(--bg-2);
+            border-radius: 8px;
+            border-left: 3px solid var(--gorgias-purple);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .query-log-item:hover {
+            background: rgba(124, 58, 237, 0.06);
+        }
+
+        .ql-query {
+            font-size: 0.72rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+            color: var(--text-0);
+        }
+
+        .ql-meta {
+            font-size: 0.58rem;
+            color: var(--text-2);
+            font-family: 'JetBrains Mono', monospace;
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--bg-3); border-radius: 3px; }
+
+        /* Welcome */
+        .welcome {
+            max-width: 680px;
+            margin: 0 auto;
+            text-align: center;
+            padding: 3rem 1rem;
+        }
+
+        .welcome-icon {
+            width: 64px; height: 64px;
+            background: var(--gradient-main);
+            border-radius: 16px;
+            display: grid;
+            place-items: center;
+            font-size: 1.5rem;
+            margin: 0 auto 1.25rem;
+            box-shadow: 0 0 40px rgba(124, 58, 237, 0.25);
+        }
+
+        .welcome h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .welcome p {
+            color: var(--text-2);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            max-width: 420px;
+            margin: 0 auto;
+        }
+
+        .dbt-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.15rem 0.4rem;
+            background: rgba(20, 184, 166, 0.12);
+            border-radius: 4px;
+            font-size: 0.58rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--gorgias-teal);
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="logo-mark">⚡</div>
+            <div>
+                <div class="logo-name">InsightAgent</div>
+                <div class="logo-tag">Gorgias Decision Intelligence</div>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <span class="chip live">Connected</span>
+            <span class="chip">LangChain + BigQuery</span>
+            <span class="chip">dbt Semantic Layer</span>
+            <span class="chip">Anthropic Claude</span>
+        </div>
+    </div>
+
+    <div class="layout">
+        <!-- Left Panel -->
+        <div class="panel panel-left">
+            <div class="panel-header">
+                <div class="panel-title">📊 Data Context</div>
+                <div class="panel-subtitle">Available dbt models & tables</div>
+            </div>
+
+            <div class="context-card active" onclick="selectContext(this)">
+                <div class="cc-header">
+                    <div class="cc-icon" style="background: rgba(124,58,237,0.15);">📈</div>
+                    <div>
+                        <div class="cc-name">fct_ticket_metrics</div>
+                        <div class="cc-type">dbt model • BigQuery</div>
+                    </div>
+                </div>
+                <div class="cc-tags">
+                    <span class="cc-tag">resolution_time</span>
+                    <span class="cc-tag">ai_resolved</span>
+                    <span class="cc-tag">csat_score</span>
+                    <span class="cc-tag">channel</span>
+                </div>
+            </div>
+
+            <div class="context-card" onclick="selectContext(this)">
+                <div class="cc-header">
+                    <div class="cc-icon" style="background: rgba(59,130,246,0.15);">🏪</div>
+                    <div>
+                        <div class="cc-name">dim_merchants</div>
+                        <div class="cc-type">dbt model • BigQuery</div>
+                    </div>
+                </div>
+                <div class="cc-tags">
+                    <span class="cc-tag">merchant_id</span>
+                    <span class="cc-tag">plan_tier</span>
+                    <span class="cc-tag">mrr</span>
+                    <span class="cc-tag">industry</span>
+                </div>
+            </div>
+
+            <div class="context-card" onclick="selectContext(this)">
+                <div class="cc-header">
+                    <div class="cc-icon" style="background: rgba(20,184,166,0.15);">🤖</div>
+                    <div>
+                        <div class="cc-name">fct_ai_agent_sessions</div>
+                        <div class="cc-type">dbt model • BigQuery</div>
+                    </div>
+                </div>
+                <div class="cc-tags">
+                    <span class="cc-tag">session_id</span>
+                    <span class="cc-tag">auto_resolved</span>
+                    <span class="cc-tag">escalated</span>
+                    <span class="cc-tag">tokens_used</span>
+                </div>
+            </div>
+
+            <div class="context-card" onclick="selectContext(this)">
+                <div class="cc-header">
+                    <div class="cc-icon" style="background: rgba(249,115,22,0.15);">💰</div>
+                    <div>
+                        <div class="cc-name">fct_revenue_attribution</div>
+                        <div class="cc-type">dbt model • BigQuery</div>
+                    </div>
+                </div>
+                <div class="cc-tags">
+                    <span class="cc-tag">conversation_id</span>
+                    <span class="cc-tag">order_value</span>
+                    <span class="cc-tag">upsell</span>
+                    <span class="cc-tag">aov_lift</span>
+                </div>
+            </div>
+
+            <div class="context-card" onclick="selectContext(this)">
+                <div class="cc-header">
+                    <div class="cc-icon" style="background: rgba(236,72,153,0.15);">📣</div>
+                    <div>
+                        <div class="cc-name">fct_campaign_performance</div>
+                        <div class="cc-type">dbt model • BigQuery</div>
+                    </div>
+                </div>
+                <div class="cc-tags">
+                    <span class="cc-tag">campaign_id</span>
+                    <span class="cc-tag">open_rate</span>
+                    <span class="cc-tag">conversion</span>
+                    <span class="cc-tag">channel</span>
+                </div>
+            </div>
+
+            <div class="context-card" onclick="selectContext(this)">
+                <div class="cc-header">
+                    <div class="cc-icon" style="background: rgba(234,179,8,0.15);">⚡</div>
+                    <div>
+                        <div class="cc-name">fct_churn_signals</div>
+                        <div class="cc-type">dbt model • BigQuery</div>
+                    </div>
+                </div>
+                <div class="cc-tags">
+                    <span class="cc-tag">merchant_id</span>
+                    <span class="cc-tag">risk_score</span>
+                    <span class="cc-tag">last_login</span>
+                    <span class="cc-tag">usage_trend</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Panel - Chat -->
+        <div class="panel chat-area">
+            <div class="chat-messages" id="chatMessages">
+                <div class="welcome">
+                    <div class="welcome-icon">⚡</div>
+                    <h2>Ask your data anything</h2>
+                    <p>I translate natural language into SQL, query BigQuery through our dbt semantic layer, and return actionable insights. Try a question below.</p>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <div class="chat-input-box">
+                    <input class="chat-input" id="chatInput" type="text" placeholder="Ask about merchants, tickets, AI agent performance..." 
+                           onkeydown="if(event.key==='Enter')sendMessage()">
+                    <button class="send-btn" onclick="sendMessage()">→</button>
+                </div>
+                <div class="quick-queries">
+                    <button class="quick-btn" onclick="askQuick('What is our AI agent resolution rate this week?')">AI resolution rate this week</button>
+                    <button class="quick-btn" onclick="askQuick('Top 5 merchants by ticket volume with CSAT below 80')">Low CSAT merchants</button>
+                    <button class="quick-btn" onclick="askQuick('Revenue attributed to AI conversations by channel')">Revenue by channel</button>
+                    <button class="quick-btn" onclick="askQuick('Churn risk: merchants with declining usage')">Churn risk signals</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="panel panel-right">
+            <div class="panel-header">
+                <div class="panel-title">📈 Live Metrics</div>
+                <div class="panel-subtitle">Real-time Gorgias platform KPIs</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="mc-label">AI Resolution Rate</div>
+                <div class="mc-value" style="color: var(--gorgias-purple);" id="resRate">61.4%</div>
+                <div class="mc-change up">↑ 3.2% vs last week</div>
+                <div class="mc-sparkline" id="spark1"></div>
+            </div>
+
+            <div class="metric-card">
+                <div class="mc-label">Avg. First Response Time</div>
+                <div class="mc-value" style="color: var(--gorgias-teal);" id="frt">18s</div>
+                <div class="mc-change up">↓ 4s improvement</div>
+                <div class="mc-sparkline" id="spark2"></div>
+            </div>
+
+            <div class="metric-card">
+                <div class="mc-label">Conversations Today</div>
+                <div class="mc-value" style="color: var(--gorgias-blue);" id="convToday">12,847</div>
+                <div class="mc-change up">↑ 8.1% vs yesterday</div>
+            </div>
+
+            <div class="metric-card">
+                <div class="mc-label">Revenue Attributed (AI)</div>
+                <div class="mc-value" style="color: var(--success);">$482K</div>
+                <div class="mc-change up">↑ 14% this month</div>
+            </div>
+
+            <div style="padding: 0.75rem;">
+                <div class="mc-label" style="padding: 0 0.15rem; margin-bottom: 0.5rem;">Recent Queries</div>
+            </div>
+
+            <div class="query-log-item" id="queryLog">
+                <div class="ql-query">No queries yet</div>
+                <div class="ql-meta"><span>—</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State ---
+        let queryCount = 0;
+
+        // --- Predefined responses ---
+        const responses = {
+            'What is our AI agent resolution rate this week?': {
+                sql: `<span class="sql-keyword">SELECT</span>
+  <span class="sql-function">DATE_TRUNC</span>(created_at, <span class="sql-string">DAY</span>) <span class="sql-keyword">AS</span> day,
+  <span class="sql-function">COUNT</span>(<span class="sql-keyword">CASE WHEN</span> auto_resolved <span class="sql-keyword">THEN</span> <span class="sql-number">1</span> <span class="sql-keyword">END</span>) <span class="sql-keyword">AS</span> resolved,
+  <span class="sql-function">COUNT</span>(*) <span class="sql-keyword">AS</span> total,
+  <span class="sql-function">ROUND</span>(<span class="sql-function">SAFE_DIVIDE</span>(
+    <span class="sql-function">COUNT</span>(<span class="sql-keyword">CASE WHEN</span> auto_resolved <span class="sql-keyword">THEN</span> <span class="sql-number">1</span> <span class="sql-keyword">END</span>),
+    <span class="sql-function">COUNT</span>(*)) * <span class="sql-number">100</span>, <span class="sql-number">1</span>) <span class="sql-keyword">AS</span> rate
+<span class="sql-keyword">FROM</span> \`gorgias-prod.analytics.fct_ai_agent_sessions\`
+<span class="sql-keyword">WHERE</span> created_at >= <span class="sql-function">DATE_SUB</span>(<span class="sql-function">CURRENT_DATE</span>(), <span class="sql-keyword">INTERVAL</span> <span class="sql-number">7</span> <span class="sql-string">DAY</span>)
+<span class="sql-keyword">GROUP BY</span> <span class="sql-number">1</span>
+<span class="sql-keyword">ORDER BY</span> <span class="sql-number">1</span>`,
+                table: {
+                    headers: ['Day', 'Resolved', 'Total', 'Rate'],
+                    rows: [
+                        ['Mon, Jan 27', '3,241', '5,102', '<span class="td-num">63.5%</span>'],
+                        ['Tue, Jan 28', '3,089', '5,340', '<span class="td-num">57.8%</span>'],
+                        ['Wed, Jan 29', '3,567', '5,721', '<span class="td-num">62.3%</span>'],
+                        ['Thu, Jan 30', '3,412', '5,458', '<span class="td-num">62.5%</span>'],
+                        ['Fri, Jan 31', '3,690', '5,893', '<span class="td-num">62.6%</span>'],
+                        ['Sat, Feb 1', '2,134', '3,521', '<span class="td-num">60.6%</span>'],
+                        ['Sun, Feb 2', '1,987', '3,218', '<span class="td-num">61.7%</span>'],
+                    ]
+                },
+                chart: { labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], values: [63.5,57.8,62.3,62.5,62.6,60.6,61.7], color: 'var(--gorgias-purple)' },
+                insight: 'The AI Agent resolution rate this week averaged **61.4%**, with a peak of **63.5%** on Monday. Tuesday saw a slight dip to 57.8% — likely due to a spike in complex shipping inquiries from the Shopify Flash Sale event. Overall, the trend is stable and within target range (60-65%).',
+                tables_used: ['fct_ai_agent_sessions'],
+                exec_time: '1.2s',
+                rows_scanned: '38,253'
+            },
+            'Top 5 merchants by ticket volume with CSAT below 80': {
+                sql: `<span class="sql-keyword">SELECT</span>
+  m.merchant_name,
+  m.plan_tier,
+  <span class="sql-function">COUNT</span>(t.ticket_id) <span class="sql-keyword">AS</span> ticket_volume,
+  <span class="sql-function">ROUND</span>(<span class="sql-function">AVG</span>(t.csat_score), <span class="sql-number">1</span>) <span class="sql-keyword">AS</span> avg_csat,
+  <span class="sql-function">ROUND</span>(<span class="sql-function">AVG</span>(t.resolution_time_min), <span class="sql-number">0</span>) <span class="sql-keyword">AS</span> avg_resolution_min
+<span class="sql-keyword">FROM</span> \`gorgias-prod.analytics.fct_ticket_metrics\` t
+<span class="sql-keyword">JOIN</span> \`gorgias-prod.analytics.dim_merchants\` m
+  <span class="sql-keyword">ON</span> t.merchant_id = m.merchant_id
+<span class="sql-keyword">WHERE</span> t.created_at >= <span class="sql-function">DATE_SUB</span>(<span class="sql-function">CURRENT_DATE</span>(), <span class="sql-keyword">INTERVAL</span> <span class="sql-number">30</span> <span class="sql-string">DAY</span>)
+<span class="sql-keyword">GROUP BY</span> <span class="sql-number">1</span>, <span class="sql-number">2</span>
+<span class="sql-keyword">HAVING</span> <span class="sql-function">AVG</span>(t.csat_score) < <span class="sql-number">80</span>
+<span class="sql-keyword">ORDER BY</span> ticket_volume <span class="sql-keyword">DESC</span>
+<span class="sql-keyword">LIMIT</span> <span class="sql-number">5</span>`,
+                table: {
+                    headers: ['Merchant', 'Plan', 'Volume', 'CSAT', 'Avg Res. (min)'],
+                    rows: [
+                        ['UrbanGear Co.', 'Enterprise', '<span class="td-num">8,421</span>', '<span class="td-negative">62.3</span>', '34'],
+                        ['FreshBox Meals', 'Pro', '<span class="td-num">5,287</span>', '<span class="td-negative">71.8</span>', '28'],
+                        ['PetPlanet UK', 'Enterprise', '<span class="td-num">4,102</span>', '<span class="td-negative">68.4</span>', '41'],
+                        ['NeonLux Beauty', 'Pro', '<span class="td-num">3,894</span>', '<span class="td-negative">74.1</span>', '22'],
+                        ['SkyFit Athletics', 'Starter', '<span class="td-num">2,756</span>', '<span class="td-negative">79.2</span>', '19'],
+                    ]
+                },
+                chart: { labels: ['UrbanGear','FreshBox','PetPlanet','NeonLux','SkyFit'], values: [62.3,71.8,68.4,74.1,79.2], color: 'var(--danger)' },
+                insight: 'Five merchants have CSAT scores below 80 with significant ticket volumes. **UrbanGear Co.** is the most critical — 8.4K tickets with a 62.3 CSAT and 34-min average resolution. Their issues are predominantly shipping-related. **PetPlanet UK** also stands out with 41-min resolution times, suggesting understaffing or complex product queries. Recommend: escalate UrbanGear to the CS team for AI Agent tuning review.',
+                tables_used: ['fct_ticket_metrics', 'dim_merchants'],
+                exec_time: '2.1s',
+                rows_scanned: '124,891'
+            },
+            'Revenue attributed to AI conversations by channel': {
+                sql: `<span class="sql-keyword">SELECT</span>
+  t.channel,
+  <span class="sql-function">COUNT</span>(<span class="sql-keyword">DISTINCT</span> r.conversation_id) <span class="sql-keyword">AS</span> conversations,
+  <span class="sql-function">SUM</span>(r.order_value) <span class="sql-keyword">AS</span> total_revenue,
+  <span class="sql-function">ROUND</span>(<span class="sql-function">AVG</span>(r.aov_lift) * <span class="sql-number">100</span>, <span class="sql-number">1</span>) <span class="sql-keyword">AS</span> avg_aov_lift_pct,
+  <span class="sql-function">SUM</span>(<span class="sql-keyword">CASE WHEN</span> r.upsell <span class="sql-keyword">THEN</span> <span class="sql-number">1</span> <span class="sql-keyword">END</span>) <span class="sql-keyword">AS</span> upsells
+<span class="sql-keyword">FROM</span> \`gorgias-prod.analytics.fct_revenue_attribution\` r
+<span class="sql-keyword">JOIN</span> \`gorgias-prod.analytics.fct_ticket_metrics\` t
+  <span class="sql-keyword">ON</span> r.conversation_id = t.ticket_id
+<span class="sql-keyword">WHERE</span> t.ai_resolved = <span class="sql-keyword">TRUE</span>
+  <span class="sql-keyword">AND</span> r.created_at >= <span class="sql-function">DATE_TRUNC</span>(<span class="sql-function">CURRENT_DATE</span>(), <span class="sql-string">MONTH</span>)
+<span class="sql-keyword">GROUP BY</span> <span class="sql-number">1</span>
+<span class="sql-keyword">ORDER BY</span> total_revenue <span class="sql-keyword">DESC</span>`,
+                table: {
+                    headers: ['Channel', 'Conversations', 'Revenue', 'AOV Lift', 'Upsells'],
+                    rows: [
+                        ['Live Chat', '<span class="td-num">4,219</span>', '<span class="td-positive">$218,400</span>', '<span class="td-positive">+29.3%</span>', '1,204'],
+                        ['Email', '<span class="td-num">3,847</span>', '<span class="td-positive">$156,200</span>', '<span class="td-positive">+18.1%</span>', '892'],
+                        ['Instagram DM', '<span class="td-num">1,563</span>', '<span class="td-positive">$67,800</span>', '<span class="td-positive">+34.7%</span>', '512'],
+                        ['SMS', '<span class="td-num">891</span>', '<span class="td-positive">$28,100</span>', '<span class="td-positive">+12.4%</span>', '198'],
+                        ['WhatsApp', '<span class="td-num">412</span>', '<span class="td-positive">$11,500</span>', '<span class="td-positive">+22.8%</span>', '87'],
+                    ]
+                },
+                chart: { labels: ['Chat','Email','IG DM','SMS','WhatsApp'], values: [218.4,156.2,67.8,28.1,11.5], color: 'var(--success)' },
+                insight: 'AI-attributed revenue this month totals **$482K** across all channels. **Live Chat** dominates with $218K (45%) followed by Email at $156K. The standout insight: **Instagram DM has the highest AOV lift at +34.7%**, suggesting the Shopping Assistant is particularly effective for product discovery flows on social. Consider prioritizing IG DM in the Q2 roadmap.',
+                tables_used: ['fct_revenue_attribution', 'fct_ticket_metrics'],
+                exec_time: '1.8s',
+                rows_scanned: '89,432'
+            },
+            'Churn risk: merchants with declining usage': {
+                sql: `<span class="sql-keyword">SELECT</span>
+  m.merchant_name,
+  m.plan_tier,
+  m.mrr,
+  c.risk_score,
+  c.usage_trend,
+  <span class="sql-function">DATE_DIFF</span>(<span class="sql-function">CURRENT_DATE</span>(), c.last_login, <span class="sql-string">DAY</span>) <span class="sql-keyword">AS</span> days_inactive
+<span class="sql-keyword">FROM</span> \`gorgias-prod.analytics.fct_churn_signals\` c
+<span class="sql-keyword">JOIN</span> \`gorgias-prod.analytics.dim_merchants\` m
+  <span class="sql-keyword">ON</span> c.merchant_id = m.merchant_id
+<span class="sql-keyword">WHERE</span> c.risk_score >= <span class="sql-number">0.7</span>
+  <span class="sql-keyword">AND</span> c.usage_trend = <span class="sql-string">'declining'</span>
+<span class="sql-keyword">ORDER BY</span> m.mrr <span class="sql-keyword">DESC</span>
+<span class="sql-keyword">LIMIT</span> <span class="sql-number">5</span>`,
+                table: {
+                    headers: ['Merchant', 'Plan', 'MRR', 'Risk Score', 'Trend', 'Days Idle'],
+                    rows: [
+                        ['LuxeHome Decor', 'Enterprise', '$4,200', '<span class="td-negative">0.92</span>', '↓ declining', '<span class="td-negative">18</span>'],
+                        ['BrewCraft Supply', 'Pro', '$1,800', '<span class="td-negative">0.87</span>', '↓ declining', '<span class="td-negative">12</span>'],
+                        ['VintageVibes Co.', 'Pro', '$1,200', '<span class="td-negative">0.84</span>', '↓ declining', '<span class="td-negative">9</span>'],
+                        ['GlowUp Skincare', 'Enterprise', '$3,600', '<span class="td-negative">0.78</span>', '↓ declining', '<span class="td-negative">7</span>'],
+                        ['TrailRunner Gear', 'Starter', '$450', '<span class="td-negative">0.71</span>', '↓ declining', '<span class="td-negative">21</span>'],
+                    ]
+                },
+                chart: { labels: ['LuxeHome','BrewCraft','Vintage','GlowUp','TrailRunner'], values: [92,87,84,78,71], color: 'var(--danger)' },
+                insight: 'Five merchants show high churn risk with declining usage. **LuxeHome Decor** ($4.2K MRR, 0.92 risk score) is the highest-value account at risk — they haven\'t logged in for 18 days. **GlowUp Skincare** ($3.6K MRR) still has some engagement (7 days idle) and may be recoverable with proactive outreach. Total at-risk MRR: **$11,250/month**. Recommend: trigger CSM alerts for LuxeHome and GlowUp immediately.',
+                tables_used: ['fct_churn_signals', 'dim_merchants'],
+                exec_time: '0.9s',
+                rows_scanned: '15,102'
+            }
+        };
+
+        // --- Init ---
+        function init() {
+            generateSparklines();
+            animateMetrics();
+        }
+
+        function generateSparklines() {
+            ['spark1', 'spark2'].forEach((id, idx) => {
+                const el = document.getElementById(id);
+                let html = '';
+                const colors = [
+                    'var(--gorgias-purple)', 'var(--gorgias-teal)'
+                ];
+                for (let i = 0; i < 14; i++) {
+                    const h = 8 + Math.random() * 22;
+                    html += `<div class="spark-bar" style="height:${h}px; background:${colors[idx]}; opacity:${0.3 + (i/14)*0.7};"></div>`;
+                }
+                el.innerHTML = html;
+            });
+        }
+
+        function animateMetrics() {
+            setInterval(() => {
+                const r = 60 + Math.random() * 4;
+                document.getElementById('resRate').textContent = r.toFixed(1) + '%';
+                const f = 15 + Math.floor(Math.random() * 8);
+                document.getElementById('frt').textContent = f + 's';
+                const c = 12000 + Math.floor(Math.random() * 1500);
+                document.getElementById('convToday').textContent = c.toLocaleString();
+            }, 4000);
+        }
+
+        // --- Context selection ---
+        function selectContext(el) {
+            document.querySelectorAll('.context-card').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        // --- Chat ---
+        function askQuick(q) {
+            document.getElementById('chatInput').value = q;
+            sendMessage();
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const q = input.value.trim();
+            if (!q) return;
+            input.value = '';
+
+            // Remove welcome
+            const welcome = document.querySelector('.welcome');
+            if (welcome) welcome.remove();
+
+            // Add user message
+            addUserMessage(q);
+
+            // Show typing
+            const typing = showTyping();
+
+            // Find matching response or generate generic
+            const responseData = responses[q] || generateGenericResponse(q);
+
+            // Simulate pipeline animation
+            setTimeout(() => {
+                typing.remove();
+                addAIResponse(q, responseData);
+                addQueryLog(q, responseData);
+                queryCount++;
+            }, 1800 + Math.random() * 800);
+        }
+
+        function addUserMessage(text) {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'message msg-user';
+            div.innerHTML = `<div class="msg-bubble">${text}</div>`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showTyping() {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'message msg-ai';
+            div.innerHTML = `
+                <div class="msg-ai-header">
+                    <div class="msg-avatar">⚡</div>
+                    <div class="msg-name">InsightAgent</div>
+                </div>
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return div;
+        }
+
+        function addAIResponse(query, data) {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'message msg-ai';
+
+            // Build pipeline
+            let pipelineHTML = `
+                <div class="pipeline">
+                    <div class="pipeline-step done">🗣 NL Query</div>
+                    <span class="pipeline-arrow">→</span>
+                    <div class="pipeline-step done">🧠 LLM Parse</div>
+                    <span class="pipeline-arrow">→</span>
+                    <div class="pipeline-step done">📐 dbt Layer</div>
+                    <span class="pipeline-arrow">→</span>
+                    <div class="pipeline-step done">🔍 BigQuery</div>
+                    <span class="pipeline-arrow">→</span>
+                    <div class="pipeline-step done">📊 Insight</div>
+                </div>
+            `;
+
+            // Build SQL block
+            let sqlHTML = `
+                <div class="sql-block">
+                    <div class="sql-header">
+                        <span class="sql-label">🔧 Generated SQL</span>
+                        <span class="sql-status">✓ ${data.exec_time} • ${data.rows_scanned} rows</span>
+                    </div>
+                    <div class="sql-body">${data.sql}</div>
+                </div>
+            `;
+
+            // Build table
+            let tableHTML = '';
+            if (data.table) {
+                const ths = data.table.headers.map(h => `<th>${h}</th>`).join('');
+                const trs = data.table.rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
+                tableHTML = `
+                    <div class="result-table-wrapper">
+                        <div class="result-header">
+                            <span class="result-label">📋 Query Results • ${data.table.rows.length} rows</span>
+                            <span class="result-label">${data.tables_used.map(t => `<span class="dbt-badge">dbt: ${t}</span>`).join(' ')}</span>
+                        </div>
+                        <table class="result-table">
+                            <thead><tr>${ths}</tr></thead>
+                            <tbody>${trs}</tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            // Build chart
+            let chartHTML = '';
+            if (data.chart) {
+                const maxVal = Math.max(...data.chart.values);
+                const bars = data.chart.labels.map((l, i) => {
+                    const h = (data.chart.values[i] / maxVal) * 100;
+                    return `<div class="bar-group">
+                        <div class="bar-value">${data.chart.values[i]}${data.chart.values[i] < 100 ? '%' : 'K'}</div>
+                        <div class="bar" style="height:${h}%; background:${data.chart.color}; opacity:${0.5 + (i * 0.1)};"></div>
+                        <div class="bar-label">${l}</div>
+                    </div>`;
+                }).join('');
+                chartHTML = `
+                    <div class="chart-container">
+                        <div class="chart-title">📊 Visual Breakdown</div>
+                        <div class="bar-chart">${bars}</div>
+                    </div>
+                `;
+            }
+
+            // Insight
+            const insightText = data.insight.replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text-0)">$1</strong>');
+
+            div.innerHTML = `
+                <div class="msg-ai-header">
+                    <div class="msg-avatar">⚡</div>
+                    <div class="msg-name">InsightAgent</div>
+                </div>
+                <div class="msg-content">
+                    ${pipelineHTML}
+                    ${sqlHTML}
+                    ${tableHTML}
+                    ${chartHTML}
+                    <div class="msg-text">${insightText}</div>
+                </div>
+            `;
+
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function generateGenericResponse(q) {
+            return {
+                sql: `<span class="sql-comment">-- Auto-generated for: "${q}"</span>
+<span class="sql-keyword">SELECT</span> *
+<span class="sql-keyword">FROM</span> \`gorgias-prod.analytics.fct_ticket_metrics\`
+<span class="sql-keyword">WHERE</span> created_at >= <span class="sql-function">DATE_SUB</span>(<span class="sql-function">CURRENT_DATE</span>(), <span class="sql-keyword">INTERVAL</span> <span class="sql-number">7</span> <span class="sql-string">DAY</span>)
+<span class="sql-keyword">LIMIT</span> <span class="sql-number">100</span>`,
+                table: {
+                    headers: ['Metric', 'Value', 'Change'],
+                    rows: [
+                        ['Total Tickets', '<span class="td-num">38,253</span>', '<span class="td-positive">+5.2%</span>'],
+                        ['AI Resolved', '<span class="td-num">23,481</span>', '<span class="td-positive">+8.1%</span>'],
+                        ['Avg CSAT', '<span class="td-num">87.3</span>', '<span class="td-positive">+1.4</span>'],
+                        ['Avg Resolution', '<span class="td-num">4.2 min</span>', '<span class="td-positive">-0.8 min</span>'],
+                    ]
+                },
+                chart: { labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], values: [5102,5340,5721,5458,5893,3521,3218], color: 'var(--gorgias-blue)' },
+                insight: `Here's a summary of the relevant data for your question. The query was executed against BigQuery using our dbt semantic layer. Let me know if you'd like to drill deeper into any specific dimension.`,
+                tables_used: ['fct_ticket_metrics'],
+                exec_time: (0.5 + Math.random() * 2).toFixed(1) + 's',
+                rows_scanned: Math.floor(10000 + Math.random() * 50000).toLocaleString()
+            };
+        }
+
+        function addQueryLog(query, data) {
+            const logArea = document.getElementById('queryLog').parentElement;
+            const item = document.createElement('div');
+            item.className = 'query-log-item';
+            item.innerHTML = `
+                <div class="ql-query">${query.length > 50 ? query.substring(0, 50) + '...' : query}</div>
+                <div class="ql-meta">
+                    <span>⏱ ${data.exec_time}</span>
+                    <span>📦 ${data.rows_scanned} rows</span>
+                </div>
+            `;
+
+            const firstItem = document.getElementById('queryLog');
+            if (firstItem) firstItem.remove();
+            logArea.insertBefore(item, logArea.firstChild);
+        }
+
+        init();
+    </script>
+</body>
+</html>
